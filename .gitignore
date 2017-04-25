@@ -1,0 +1,11 @@
+# Temp files
+*.*~
+*.*.swp
+
+# Vala excludes
+*.c
+*.h
+
+# Test binaries
+gp-camera
+gp-capture
