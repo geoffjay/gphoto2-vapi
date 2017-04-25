@@ -227,22 +227,19 @@ public class App : Object {
                 stdout.printf ("Current: %d\n", t);
                 break;
             case CameraWidgetType.DATE:
-                /*
-                 *void *value;
-                 *int[] ary;
-                 *int t;
-                 *ret = widget.get_value (out value);
-                 *if (ret != Result.OK) {
-                 *    context.error ("Failed to retrieve values of date widget %s.", name);
-                 *    break;
-                 *}
-                 *ary = (int[]) value;
-                 *t = ary[0];
-                 *stdout.printf ("Type: DATE\n");
-                 *stdout.printf ("Current: %d\n", t);
-                 *stdout.printf ("Printable: ...\n");
-                 *stdout.printf ("Help: %s\n", "Use 'now' as the current time when setting.\n");
-                 */
+                void *value;
+                long t;
+                ret = widget.get_value (out value);
+                if (ret != Result.OK) {
+                    context.error ("Failed to retrieve values of date widget %s.", name);
+                    break;
+                }
+                t = (long) value;
+                Time time = Time.local ((time_t) t);
+                stdout.printf ("Type: DATE\n");
+                stdout.printf ("Current: %ld\n", t);
+                stdout.printf ("Printable: %s\n", time.to_string ());
+                stdout.printf ("Help: %s\n", "Use 'now' as the current time when setting.\n");
                 break;
             case CameraWidgetType.MENU:
             case CameraWidgetType.RADIO:
