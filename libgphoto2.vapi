@@ -86,15 +86,15 @@ namespace GPhoto {
         [CCode (cname="gp_widget_get_child")]
         public Result get_child (int child_number, out unowned CameraWidget child);
         [CCode (cname="gp_widget_get_child_by_label")]
-        public Result get_child_by_label (string label, out CameraWidget child);
+        public Result get_child_by_label (string label, out unowned CameraWidget child);
         [CCode (cname="gp_widget_get_child_by_id")]
-        public Result get_child_by_id (int id, out CameraWidget child);
+        public Result get_child_by_id (int id, out unowned CameraWidget child);
         [CCode (cname="gp_widget_get_child_by_name")]
-        public Result get_child_by_name (string name, out CameraWidget child);
+        public Result get_child_by_name (string name, out unowned CameraWidget child);
         [CCode (cname="gp_widget_get_root")]
-        public Result get_root (out CameraWidget root);
+        public Result get_root (out unowned CameraWidget root);
         [CCode (cname="gp_widget_get_parent")]
-        public Result get_parent (out CameraWidget parent);
+        public Result get_parent (out unowned CameraWidget parent);
         [CCode (cname="gp_widget_set_value")]
         public Result set_value (void *value);
         [CCode (cname="gp_widget_get_value")]
@@ -130,7 +130,7 @@ namespace GPhoto {
         [CCode (cname="gp_widget_set_readonly")]
         public Result set_readonly (int readonly);
         [CCode (cname="gp_widget_get_readonly")]
-        public Result get_readonly (int readonly);
+        public Result get_readonly (out int readonly);
     }
 
     [SimpleType]
@@ -277,12 +277,12 @@ namespace GPhoto {
         // Config
         public Result get_config (out CameraWidget window, Context context);
         public Result list_config (out CameraList list, Context context);
-        public Result get_single_config	(string name, out CameraWidget widget, Context context);
+        public Result get_single_config	(string name, out unowned CameraWidget widget, Context context);
         public Result set_config (CameraWidget window, Context context);
         public Result set_single_config	(string name, CameraWidget widget, Context context);
 
         // Capture
-        public Result capture (CameraCaptureType type, CameraFilePath path, Context context);
+        public Result capture (CameraCaptureType type, out CameraFilePath path, Context context);
         public Result trigger_capture (Context context);
         public Result capture_preview (CameraFile file, Context context);
         public Result wait_for_event (int timeout, CameraEventType eventtype, void **eventdata, Context context);

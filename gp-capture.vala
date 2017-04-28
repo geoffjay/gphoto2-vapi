@@ -14,20 +14,22 @@ public class App : Object {
 
     private Context context;
     private Camera camera;
-    private Result result;
 
-    extern void capture_to_file (Camera camera, Context context, string filename);
+    public int frames { get; set; default = 1; }
+    public int interval { get; set; default = 0; }
 
     public App () {
-        result = Camera.create (out camera);
-        if (result != Result.OK) {
-            critical (result.to_full_string ());
+        Result ret;
+
+        ret = Camera.create (out camera);
+        if (ret != Result.OK) {
+            critical (ret.to_full_string ());
         }
 
         context = new Context ();
-        result = camera.init (context);
-        if (result != Result.OK) {
-            critical (result.to_full_string ());
+        ret = camera.init (context);
+        if (ret != Result.OK) {
+            critical (ret.to_full_string ());
         }
     }
 
@@ -35,91 +37,117 @@ public class App : Object {
         camera.exit (context);
     }
 
-    public void info () {
+    private int save_file (string folder, string filename, CameraFileType type) {
         Result ret;
-        PortInfo port_info;
-        CameraAbilities abilities;
-        //CameraStorageInformation storage_info;
+        int fd;
+        CameraFile file = null;
+        string tmpname = "tmpfileXXXXXX";
+        string? tmpfilename = null;
 
-        ret = camera.get_port_info (out port_info);
-        if (ret != Result.OK) {
-            critical (ret.to_full_string ());
-            return;
+        fd = FileUtils.mkstemp (tmpname);
+        if (fd == -1) {
+            if (errno == Posix.EACCES) {
+                context.error ("Permission denied");
+            }
+        } else {
+            ret = CameraFile.create_from_fd (out file, fd);
+            if (ret < Result.OK) {
+                FileUtils.close (fd);
+                FileUtils.unlink (tmpname);
+                return ret;
+            }
+            tmpfilename = tmpname;
         }
 
-        string name;
-        string path;
-        string library_filename;
-
-        port_info.get_name (out name);
-        port_info.get_path (out path);
-
-        stdout.printf (" name: %s\n", name);
-        stdout.printf (" path: %s\n", path);
-
-        ret = camera.get_abilities (out abilities);
-        if (ret != Result.OK) {
-            critical (ret.to_full_string ());
-            return;
+        if (file != null) {
+            ret = camera.get_file (folder, filename, type, file, context);
+            if (ret < Result.OK) {
+                if (tmpfilename != null) {
+                    return ret;
+                }
+            }
         }
+
+        //ret = save_camera_file ();
+
+        return Result.OK;
     }
 
-    public Result run () {
-        if (result != Result.OK) {
-            return result;
+    private int save_captured_file (CameraFilePath path, bool download) {
+        Result ret;
+        string sep;
+        CameraFilePath last;
+
+        if ((string) path.folder == "/") {
+            sep = "";
+        } else {
+            sep = "/";
         }
 
-        for (var i = 0; i < 10; i++) {
-            var filename = "shot-%04d.nef".printf (i);
-            stdout.printf ("Capturing to file %s\n", filename);
-            try {
-                capture ("", filename);
-            } catch (Error e) {
-                critical (e.message);
-            }
+        stdout.printf ("New file is in location %s%s%s on the camera\n",
+                       (string) path.folder, sep, (string) path.name);
+
+        if (download) {
+            ret = (Result) save_file ((string) path.folder,
+                                      (string) path.name,
+                                      CameraFileType.NORMAL);
         }
 
         return Result.OK;
     }
 
-    private void capture (string folder, string filename) throws Error {
-        capture_to_file (camera, context, filename);
+    public void capture (CameraCaptureType type, bool download)
+                         throws GPhotoError {
+        Result ret;
+        int frame = 0;
+        CameraFilePath path;
+        CameraAbilities abilities;
+        CameraEventType event;
 
-/*
- *        CameraFile file;
- *        var dest_file = File.new_for_path (filename);
- *
- *        var fd = Posix.creat (dest_file.get_path (), 0640);
- *        if (fd < 0) {
- *            throw new IOError.FAILED("[%d] Error creating file %s: %m",
- *                GLib.errno, dest_file.get_path());
- *        }
- *
- *        Result res = CameraFile.create_from_fd (out file, fd);
- *        if (res != Result.OK) {
- *            Posix.close (fd);
- *            throw new GPhotoError.LIBRARY ("[%d] Error allocating camera file: %s",
- *                (int) res, res.as_string ());
- *        }
- *
- *        res = camera.get_file (folder, filename, CameraFileType.NORMAL, file, context);
- *        if (res != Result.OK) {
- *            Posix.close (fd);
- *            throw new GPhotoError.LIBRARY("[%d] Error retrieving file object for %s/%s: %s",
- *                (int) res, folder, filename, res.as_string());
- *        }
- *
- *        Posix.close (fd);
- */
+        ret = camera.get_abilities (out abilities);
+        if (ret != Result.OK) {
+            throw new GPhotoError.LIBRARY (ret.to_full_string ());
+        }
+
+        do {
+            frame++;
+            ret = camera.capture (type, out path, context);
+            if (ret != Result.OK) {
+                throw new GPhotoError.LIBRARY (ret.to_full_string ());
+            } else {
+                /* Apparently some cameras return *UNKNOWN* as the filename if
+                 * they are unable to get focus lock */
+                if (interval != 0 && (string) path.name == "*UNKNOWN*") {
+                    throw new GPhotoError.LIBRARY (
+                        "Capture failed (auto-focus problem?): %s",
+                        ret.as_string ());
+                }
+
+                ret = (Result) save_captured_file (path, download);
+                if (ret != Result.OK) {
+                    break;
+                }
+            }
+
+            if (interval == 0) {
+                break;
+            }
+
+            if (frame == frames) {
+                break;
+            }
+        } while (frame != frames);
     }
 
     public static int main (string[] args) {
         var app = new App ();
-        app.info ();
-        var ret = app.run ();
 
-        if (ret != Result.OK) {
-            return -1;
+        try {
+            app.frames = 10;
+            app.interval = 1;
+            app.capture (CameraCaptureType.IMAGE, true);
+        } catch (GPhotoError e) {
+            error (e.message);
         }
 
         return 0;

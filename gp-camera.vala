@@ -1,6 +1,6 @@
 /**
  * To compile:
- *   valac --pkg libgphoto2 --vapidir=. --includedir=. -X -I. gp-camera.vala gphoto.h
+ *   valac --pkg libgphoto2 --gobject-2.0 --vapidir=. --includedir=. -X -I. gp-camera.vala
  */
 
 using GPhoto;
@@ -312,6 +312,56 @@ public class App : Object {
         }
     }
 
+    public void set_owner_name (string name) throws GPhotoError {
+        Result ret;
+        CameraWidget widget;
+        CameraWidget settings;
+        CameraWidget ownername;
+
+        void *value;
+        string text;
+
+        ret = camera.get_config (out widget, context);
+        if (ret != Result.OK) {
+            throw new GPhotoError.CONFIG (ret.to_full_string ());
+        }
+
+        ret = widget.get_child_by_name ("settings", out settings);
+        if (ret != Result.OK) {
+            throw new GPhotoError.CONFIG (ret.to_full_string ());
+        }
+
+        ret = settings.get_child_by_name ("ownername", out ownername);
+        if (ret != Result.OK) {
+            throw new GPhotoError.CONFIG (ret.to_full_string ());
+        }
+
+        ret = ownername.get_value (out value);
+        if (ret != Result.OK) {
+            context.error ("Failed to retrieve value of text widget %s.", name);
+        }
+        text = (string) value;
+
+        stdout.printf ("Changing ownername from %s to %s\n", text, name);
+        ret = ownername.set_value ((void *) name);
+        if (ret != Result.OK) {
+            context.error ("Failed to retrieve value of text widget %s.", name);
+        }
+
+        camera.set_single_config ("ownername", ownername, context);
+        if (ret != Result.OK) {
+            throw new GPhotoError.CONFIG (ret.to_full_string ());
+        }
+
+        ret = ownername.get_value (out value);
+        if (ret != Result.OK) {
+            context.error ("Failed to retrieve value of text widget %s.", name);
+        }
+        text = (string) value;
+
+        stdout.printf ("Changed ownername to %s\n", text);
+    }
+
     public static int main (string[] args) {
         var app = new App ();
 
@@ -321,6 +371,7 @@ public class App : Object {
             app.print_abilities ();
             //app.print_misc ();
             app.print_config ();
+            app.set_owner_name ("test");
         } catch (GPhotoError e) {
             error (e.message);
         }
