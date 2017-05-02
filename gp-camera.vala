@@ -362,6 +362,42 @@ public class App : Object {
         stdout.printf ("Changed ownername to %s\n", text);
     }
 
+    public void set_viewfinder (uint8 state) throws GPhotoError {
+        Result ret;
+        CameraWidget widget;
+        CameraWidget actions;
+        CameraWidget viewfinder;
+
+        void *value;
+        uint8 toggle;
+
+        ret = camera.get_config (out widget, context);
+        if (ret != Result.OK) {
+            throw new GPhotoError.CONFIG (ret.to_full_string ());
+        }
+
+        ret = widget.get_child_by_name ("actions", out actions);
+        if (ret != Result.OK) {
+            throw new GPhotoError.CONFIG (ret.to_full_string ());
+        }
+
+        ret = actions.get_child_by_name ("viewfinder", out viewfinder);
+        if (ret != Result.OK) {
+            throw new GPhotoError.CONFIG (ret.to_full_string ());
+        }
+
+        uint8[] ary = { 0 };
+        ret = viewfinder.set_value ((void *) ary);
+        if (ret != Result.OK) {
+            throw new GPhotoError.CONFIG (ret.to_full_string ());
+        }
+
+        camera.set_single_config ("viewfinder", viewfinder, context);
+        if (ret != Result.OK) {
+            throw new GPhotoError.CONFIG (ret.to_full_string ());
+        }
+    }
+
     public static int main (string[] args) {
         var app = new App ();
 
@@ -372,6 +408,7 @@ public class App : Object {
             //app.print_misc ();
             app.print_config ();
             app.set_owner_name ("test");
+            app.set_viewfinder (0);
         } catch (GPhotoError e) {
             error (e.message);
         }
